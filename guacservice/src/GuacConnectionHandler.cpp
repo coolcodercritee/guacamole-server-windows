@@ -13,19 +13,24 @@ GuacConnectionHandler::GuacConnectionHandler(const GuacConfig & rConfig)
 
 bool GuacConnectionHandler::HandleNewConnection(const IGuacConnectionSocketPtr & pClientConnection)
 {
+    GuacLogger::GetInstance()->Debug() << "Handling new connection";
+    
    // Check that the socket does not exist
    {
       boost::mutex::scoped_lock lock(m_GuacConnectionsMutex);
       for(auto && guacConnection : m_GuacConnections)
       {
-         if(guacConnection->GetUnderlyingSocket() == pClientConnection)
+          //GuacLogger::GetInstance()->Debug() << "Handling new connection, breaking for WORKAROUND";
+          //return false;
+          
+          if(guacConnection->GetUnderlyingSocket() == pClientConnection)
          {
-            return false;
+             GuacLogger::GetInstance()->Debug() << "Handling new connection, duplicate";
+             return false;
          }
       }
    }
 
-   GuacLogger::GetInstance()->Debug() << "Handling new connection";
    // Create the connection
    GuacConnectionSmartPtr connection(new GuacConnection(this));
 
@@ -36,18 +41,22 @@ bool GuacConnectionHandler::HandleNewConnection(const IGuacConnectionSocketPtr &
          boost::mutex::scoped_lock lock(m_GuacConnectionsMutex);
          m_GuacConnections.push_back(connection);
       }
+
+      GuacLogger::GetInstance()->Debug() << "Handling new connection, start invoked" << connection;
+
       // Will start the guac connection, create / use process and add the user to it
       connection->StartGuacConnection();
 
       return true;
    }
 
+   GuacLogger::GetInstance()->Debug() << "Handling new connection, could not prepare";
    return false;
 }
 
 void GuacConnectionHandler::CloseConnections()
 {
-   // Closes all the connections, will evantually also close all the processes
+    // Closes all the connections, will evantually also close all the processes
    for(auto && conn : m_GuacConnections)
    {
       conn->StopGuacConnection();
@@ -83,6 +92,8 @@ void GuacConnectionHandler::OnClientProcessRemoved(const std::string & stID)
 
          m_GuacConnections.erase(m_GuacConnections.begin() + index);
 
+         GuacLogger::GetInstance()->Debug() << "Closing connection" << stID;
+         
          // Send to another thread for safe cleanup
          // This is due to the posbillity of the deletion coming from the connection thread itself
          // Pass the connection since the local var will die so we cant pass it on the scope
@@ -113,6 +124,8 @@ void GuacConnectionHandler::OnClientProcessRemoved(const std::string & stID)
 void GuacConnectionHandler::OnConnectionFailure(const std::string & stConnectionID)
 {
    boost::mutex::scoped_lock lock(m_GuacConnectionsMutex);
+
+   GuacLogger::GetInstance()->Debug() << "Connection failure" << stConnectionID;
 
    // On connection failure we remove the connection and clean it up
    for(size_t i = 0; i < m_GuacConnections.size(); i++)

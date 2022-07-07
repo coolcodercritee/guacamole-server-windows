@@ -19,8 +19,19 @@ SET(Guac_DEPENDENCIES
         "OpenSSL,v1.0.2l,Release,x64,MSVC_ALL_VERSIONS"
         "PNG,v1.6.35,Release,x64,MSVC_14.0"
         "WebP,v0.6.1,Release,x64,MSVC_ALL_VERSIONS")
+		
+SET(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} "C:/Users/critee_backend/libs/boost_1_64_0")
+SET(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} "C:/Users/critee_backend/libs/boost_1_64_0/lib64-msvc-14.1")
 
-FIND_PACKAGE(Boost REQUIRED)
+find_package(Boost)
+IF (Boost_FOUND)
+    INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIR})
+ENDIF()		
+
+#FIND_PACKAGE(Boost REQUIRED)
+
+
+
 
 # SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
 #        "/MD /Zi /O2 /Ob0 /Ot /Oi /GT /GL /DNDEBUG")

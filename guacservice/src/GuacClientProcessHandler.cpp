@@ -51,6 +51,11 @@ void GuacClientProcessHandler::IOThread(const GuacConnectionPtr & pConnectionUse
    {
       GuacLogger::GetInstance()->Error() << "Could not create user shared memory, aborting user ["
                                          << GetProcessHandlerID() << "]";
+
+      // WORKAROUND: kill the client process since Write Thread has exited
+      // Cleanup all the user related IO objects
+      CleanupUserIO(pConnectionUser, bOwner, user_shm, shared_memory_name);
+
       return;
    }
 
@@ -96,6 +101,8 @@ void GuacClientProcessHandler::IOThread(const GuacConnectionPtr & pConnectionUse
                                       }
                                    }
                                 }
+
+                                return;
                              });
 
 
@@ -123,11 +130,13 @@ void GuacClientProcessHandler::IOThread(const GuacConnectionPtr & pConnectionUse
 			guac_socket_write(user_shm, buffer, size);
 		}
 	}
-	// Wait for the read thread to finish
-	read_thread.join();
 
+    // WORKAROUND: kill the client process since Write Thread has exited
 	// Cleanup all the user related IO objects
 	CleanupUserIO(pConnectionUser, bOwner, user_shm, shared_memory_name);
+
+    // Wait for the read thread to finish
+    read_thread.join();
 }
 
 void
@@ -142,7 +151,7 @@ GuacClientProcessHandler::CleanupUserIO(const GuacConnectionPtr & pConnectionUse
       // If this is the owner user, we need to stop the process completely
       if(bOwner)
       {
-         GuacLogger::GetInstance()->Debug() << "Stopping Process Since Owner Died [" << GetProcessHandlerID() << "]";
+         GuacLogger::GetInstance()->Debug() << "Stopping Client Process [" << GetProcessHandlerID() << "]";
          StopProcess();
 
          // Release the user shared memory  
@@ -311,6 +320,10 @@ bool GuacClientProcessHandler::StartConnectionUser(const GuacConnectionPtr & pCo
 
    // Save the connection with the thread
    m_vecConnections.push_back(pConnectionUser);
+
+   // WORKAROUND: make it owner to close the client process pronto on connection loss
+   owner = true;
+   GuacLogger::GetInstance()->Debug() << "Forcing ownership";
 
    // Start the user IO 
    IOThread(pConnectionUser, owner);
